@@ -1,10 +1,11 @@
 import connectDB from "@/config/db";
 import User from "@/model/User";
+import { headers } from "next/headers";
 import { NextRequest } from "next/server";
 import { Webhook } from "svix";
 
 
-export async function POST(reg){
+export async function POST(req){
     const wh = new Webhook(process.env.SIGHNING_SECRET)
     const headerPayload = await headers()
     const svixHeaders = {
@@ -14,7 +15,7 @@ export async function POST(reg){
 
     // get the payload and varify
 
-    const payload = await requestAnimationFrame.json();
+    const payload = await req.json();
     const body = JSON.stringify(payload)
     const {data, type} = wh.verify(body, svixHeaders)
 
@@ -34,7 +35,7 @@ export async function POST(reg){
             break;
 
         case 'user.updated':
-            await User.findByIdAndUpdate(data.id)
+            await User.findByIdAndUpdate(data.id, userData)
             break;
         
         case 'user.deleted':
