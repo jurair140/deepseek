@@ -1,51 +1,58 @@
 import connectDB from "@/config/db";
 import User from "@/model/User";
 import { headers } from "next/headers";
-import {  NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 
+export async function POST(req) {
+  const wh = new Webhook(process.env.SIGNING_SECRET); // make sure env var is correct
+  const headerPayload = headers(); // ✅ no await
+  const svixHeaders = {
+    "svix-id": headerPayload.get("svix-id"),
+    "svix-timestamp": headerPayload.get("svix-timestamp"),
+    "svix-signature": headerPayload.get("svix-signature"),
+  };
 
-export async function POST(req){
-    const wh = new Webhook(process.env.SIGHNING_SECRET)
-    const headerPayload = await headers()
-    const svixHeaders = {
-        "svix-id" : headerPayload.get("svix-id"),
-        "svix-timestamp" : headerPayload.get("svix-timestamp"),
-        "svix-signature" : headerPayload.get("svix-signature"),
-    }
+  const payload = await req.json();
+  const body = JSON.stringify(payload);
 
-    // get the payload and varify
+  let event;
+  try {
+    event = wh.verify(body, svixHeaders);
+  } catch (err) {
+    console.error("Webhook verification failed:", err);
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const payload = await req.json();
-    const body = JSON.stringify(payload)
-    const {data, type} = wh.verify(body, svixHeaders)
+  const { data, type } = event;
 
-    // prepare the user data to be saved inthe database
+  const userData = {
+    _id: data.id,
+    email: data?.email_addresses?.[0]?.email_address || "no-email",
+    name: `${data.first_name || ""} ${data.last_name || ""}`.trim(),
+    image: data.image_url || ""
+  };
 
-    const userData  = {
-        _id:data.id,
-        email:data.email_addresses[0].email_address,
-        name:`${data.first_name} ${data.last_name}`,
-        image:data.image_url
-    }
-    await connectDB()
+  await connectDB();
 
+  try {
     switch (type) {
-        case 'user.created':
-            await User.create(userData)
-            break;
-
-        case 'user.updated':
-            await User.findByIdAndUpdate(data.id, userData)
-            break;
-        
-        case 'user.deleted':
-            await User.findByIdAndDelete(data.id)
-            break;       
-    
-        default:
-            break;
+      case "user.created":
+        await User.create(userData);
+        break;
+      case "user.updated":
+        await User.findByIdAndUpdate(data.id, userData);
+        break;
+      case "user.deleted":
+        await User.findByIdAndDelete(data.id);
+        break;
+      default:
+        break;
     }
+  } catch (dbErr) {
+    console.error("DB operation failed:", dbErr);
+    return NextResponse.json({ error: "Database error" }, { status: 500 });
+  }
 
-    return NextRequest.json({message:"Event recieved"})
+  return NextResponse.json({ message: "Event received" }); // ✅ correct response
 }
