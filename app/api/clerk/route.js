@@ -1,7 +1,7 @@
 import connectDB from "@/config/db";
 import User from "@/model/User";
 import { headers } from "next/headers";
-import {  NextResponse } from "next/server";
+import {  NextRequest } from "next/server";
 import { Webhook } from "svix";
 
 
@@ -47,5 +47,5 @@ export async function POST(req){
             break;
     }
 
-    return NextResponse.json({message:"Event recieved"})
+    return NextRequest.json({message:"Event recieved"})
 }
