@@ -20,21 +20,16 @@ export async function POST(req){
     const body = JSON.stringify(payload)
     const {data, type} = wh.verify(body,svixHeaders)
 
-    console.log("🔍 Verified Clerk Event Type:", type);
-console.log("📦 Verified Clerk Data:", data);
 
     // prepare the user data to be saved inthe database
 
 
     const userData  = {
         _id:data?.id,
-        email: data.email_addresses?.[0]?.email_address || "noemail@example.com",
+        email: data.email_addresses[0]?.email_address,
         name:`${data?.first_name} ${data?.last_name}`,
-        image:data?.image_url
+        image:data?.image_url,
     }
-
-    console.log("🧾 Prepared User Data:", userData);
-
 
     await connectDB()
 
